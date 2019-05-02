@@ -1,5 +1,3 @@
-# http-server-from-scratch
-
 ## Start the server
 ```
 $ ./server
