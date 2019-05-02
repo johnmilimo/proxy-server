@@ -17,7 +17,9 @@ int main(int argc, char const *argv[]) {
 
     int sockfd, new_socket, caddrlen;
     long valread;
-    char *message = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nkijana fupi nono round - Mulmulwas";
+    char *original_msg = "Kijana fupi nono round - Mulmulwas";
+
+    char *message = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: %d\n\n";
 
     /* 1. Create/Setup a socket. This returns a file descriptor.
     * int socket(int domain, int type, int protocol);
