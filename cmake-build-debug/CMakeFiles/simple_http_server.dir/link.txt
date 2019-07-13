@@ -1,1 +1,0 @@
-/Library/Developer/CommandLineTools/usr/bin/cc -g -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/simple_http_server.dir/main.c.o CMakeFiles/simple_http_server.dir/tcp_server.c.o CMakeFiles/simple_http_server.dir/tcp_client.c.o  -o simple_http_server 
