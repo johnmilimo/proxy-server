@@ -5,6 +5,8 @@
 References
 ----------
 1. https://github.com/LambdaSchool/C-Web-Server
+2. https://github.com/kklis/proxy/blob/master/proxy.c
+
 **/
 
 #include "utils.h"
@@ -24,25 +26,25 @@ void server_run();
 void handle_client(int client_sock);
 int create_connection();
 void serve_client_request(int client_sock);
-int check_ipversion(char * address);
+int check_ipversion(const char * address);
 int create_server_socket();
 
 int connections_processed = 0;
-int server_sock, client_sock, remote_sock, remote_port = 80;
-char *remote_host = "127.0.0.1";
+int server_sock, client_sock, remote_sock;
+char const *remote_host;
+char const *remote_port;
 
 typedef enum {TRUE = 1, FALSE = 0} bool;
 #define SERVER_PORT 8088  //Where the clients can reach at
 #define PROXY TRUE
 
-#define CLIENT_SOCKET_ERROR -5
-#define CLIENT_RESOLVE_ERROR -6
-#define CLIENT_CONNECT_ERROR -7
-
 /*
  * Socket -> Bind -> listen -> accept -> read -> write -> read -> close
  */
 int main(int argc, char const *argv[]) {
+
+    remote_host = argv[1];
+    remote_port = argv[2];
 
     if(create_server_socket() == 0) {
         return 0;
@@ -212,21 +214,21 @@ void serve_client_request(int client_sock) {
         close(client_sock);
 }
 
-
-/* Create client connection */
+/*
+ - Create client connection 
+   Reference: http://man7.org/linux/man-pages/man3/getaddrinfo.3.html#EXAMPLE
+*/
 int create_connection() {
-    struct addrinfo hints, *res=NULL;
-    int sock;
+    struct addrinfo hints, *result, *rp;
+    int sock, s;
     int validfamily=0;
-    char portstr[12];
 
-    memset(&hints, 0x00, sizeof(hints));
+    memset(&hints, 0, sizeof(struct addrinfo));
 
     hints.ai_flags    = AI_NUMERICSERV; /* numeric service number, not resolve */
-    hints.ai_family   = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    sprintf(portstr, "%d", remote_port);
+    hints.ai_family   = AF_UNSPEC; /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM; /* Stream Socket */
+    hints.ai_protocol = 0;          /* Any protocol */
 
     /* check for numeric IP to specify IPv6 or IPv4 socket */
     if ((validfamily = check_ipversion(remote_host))) {
@@ -235,37 +237,64 @@ int create_connection() {
     }
 
     /* Check if specified host is valid. Try to resolve address if remote_host is a hostname */
-    if (getaddrinfo(remote_host,portstr , &hints, &res) != 0) {
-        return CLIENT_RESOLVE_ERROR;
+    if ((s = getaddrinfo(remote_host, remote_port , &hints, &result)) != 0) {
+    
+       /*
+        The gai_strerror() function translates these error codes to a human
+       readable string, suitable for error reporting.
+       */
+       fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+       exit(EXIT_FAILURE);
     }
 
-    if ((sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
-        return CLIENT_SOCKET_ERROR;
+    /*
+    getaddrinfo() returns a list of address structures.
+    Try each address until we successfully bind(2).
+    If socket(2) (or bind(2)) fails, we (close the socket
+    and) try the next address.
+    */
+
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+       sock = socket(rp->ai_family, rp->ai_socktype,
+                    rp->ai_protocol);
+       if (sock == -1)
+           continue;
+
+       if (connect(sock, rp->ai_addr, rp->ai_addrlen) != -1)
+           break;                  /* Success */
+
+       close(sock);
     }
 
-    if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
-        return CLIENT_CONNECT_ERROR;
+    if (rp == NULL) {               /* No address succeeded */
+       fprintf(stderr, "Could not connect\n");
+       exit(EXIT_FAILURE);
     }
 
-    if (res != NULL)
-      freeaddrinfo(res);
+    freeaddrinfo(result);           /* No longer needed */
 
     return sock;
 }
 
-
-int check_ipversion(char * address)
+/* Check for valid IPv4 or Iv6 string. Returns AF_INET family for IPv4, AF_INET6 family for IPv6 */
+int check_ipversion(const char * address)
 {
-/* Check for valid IPv4 or Iv6 string. Returns AF_INET for IPv4, AF_INET6 for IPv6 */
+    /*
+    NOTES:
+        inet_pton() returns 1 on success (network address was successfully
+        converted).  0 is returned if src does not contain a character string
+        representing a valid network address in the specified address family.
+        If af does not contain a valid address family, -1 is returned and
+        errno is set to EAFNOSUPPORT.
+    */
 
+    // network address structure : compatible with both IPv4 and IPv6
     struct in6_addr bindaddr;
 
     if (inet_pton(AF_INET, address, &bindaddr) == 1) {
          return AF_INET;
-    } else {
-        if (inet_pton(AF_INET6, address, &bindaddr) == 1) {
-            return AF_INET6;
-        }
-    }
-    return 0;
+    } else if (inet_pton(AF_INET6, address, &bindaddr) == 1) {
+        return AF_INET6;
+    } else 
+        return 0;
 }

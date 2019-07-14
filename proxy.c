@@ -18,12 +18,10 @@ int forward_data(int source_sock, int destination_sock) {
     char buffer[BUF_SIZE];
 
     /*
-
     Upon successful completion, recv() shall return the length of the message
      in bytes. If no messages are available to be received and the peer 
      has performed an orderly shutdown, recv() shall return 0. 
      Otherwise, -1 shall be returned and errno set to indicate the error.
-
     */
      while ((msg_length_in_bytes = recv(source_sock, buffer, BUF_SIZE, 0)) > 0) { // read data from input socket
         send(destination_sock, buffer, msg_length_in_bytes, 0); // send data to output socket
