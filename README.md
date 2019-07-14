@@ -11,7 +11,9 @@ Example:
 
 The bash script compiles the C program files and then starts the proxy server on port `8088`. URL: `http://localhost:8088`
 
-NOTE: The [UPSTREAM_HOST] should be unsecured http as the proxy server is not able to handle ssl termination at the moment. You can pull the docker image for httpbin and run it locally to test with. See below how to:
+NOTE: The [UPSTREAM_HOST] should be unsecured http as the proxy server is not able to perform ssl handshake with the upstream at the moment. 
+
+You can pull the docker image for `httpbin` and run it locally to test with. See below how to:
 
 Pull image:
 
